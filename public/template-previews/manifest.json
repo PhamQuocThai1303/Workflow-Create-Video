@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "source": "https://tramai.net/templates",
+  "syncedAt": "2026-08-19T10:01:59.471Z",
+  "previews": {
+    "creative/free-style": {
+      "thumbnailUrl": "/template-previews/creative--free-style.png",
+      "youtubeVideoId": "KmRW6-uIJ4w",
+      "duration": "0:48",
+      "sourceTemplateId": "creative/free-style-sfx"
+    },
+    "creative/free-style-sfx": {
+      "thumbnailUrl": "/template-previews/creative--free-style-sfx.png",
+      "youtubeVideoId": "KmRW6-uIJ4w",
+      "duration": "0:48",
+      "sourceTemplateId": null
+    },
+    "creative/pixel-style": {
+      "thumbnailUrl": "/template-previews/creative--pixel-style.png",
+      "youtubeVideoId": "jCVp5dgYfwA",
+      "duration": "0:44",
+      "sourceTemplateId": "creative/pixel-style-sfx"
+    },
+    "creative/pixel-style-sfx": {
+      "thumbnailUrl": "/template-previews/creative--pixel-style-sfx.png",
+      "youtubeVideoId": "jCVp5dgYfwA",
+      "duration": "0:44",
+      "sourceTemplateId": null
+    },
+    "creative/demo-scroll": {
+      "thumbnailUrl": "/template-previews/creative--demo-scroll.png",
+      "youtubeVideoId": "LbLoDFJ2HWY",
+      "duration": "0:52",
+      "sourceTemplateId": "creative/demo-scroll-sfx"
+    },
+    "creative/demo-scroll-sfx": {
+      "thumbnailUrl": "/template-previews/creative--demo-scroll-sfx.png",
+      "youtubeVideoId": "LbLoDFJ2HWY",
+      "duration": "0:52",
+      "sourceTemplateId": null
+    },
+    "creative/article-video-demo": {
+      "thumbnailUrl": "/template-previews/creative--article-video-demo.png",
+      "youtubeVideoId": "q5MKxSIf25c",
+      "duration": "0:58",
+      "sourceTemplateId": null
+    },
+    "creative/source-led-light": {
+      "thumbnailUrl": "/template-previews/creative--source-led-light.png",
+      "youtubeVideoId": "6vY3Jk_uuag",
+      "duration": "0:56",
+      "sourceTemplateId": "creative/source-led-light-sfx"
+    },
+    "creative/source-led-dark": {
+      "thumbnailUrl": "/template-previews/creative--source-led-dark.png",
+      "youtubeVideoId": "8fDlWTh1Aps",
+      "duration": "0:56",
+      "sourceTemplateId": "creative/source-led-dark-sfx"
+    },
+    "creative/source-led-light-sfx": {
+      "thumbnailUrl": "/template-previews/creative--source-led-light-sfx.png",
+      "youtubeVideoId": "6vY3Jk_uuag",
+      "duration": "0:56",
+      "sourceTemplateId": null
+    },
+    "creative/source-led-dark-sfx": {
+      "thumbnailUrl": "/template-previews/creative--source-led-dark-sfx.png",
+      "youtubeVideoId": "8fDlWTh1Aps",
+      "duration": "0:56",
+      "sourceTemplateId": null
+    },
+    "news/current-affairs-light": {
+      "thumbnailUrl": "/template-previews/news--current-affairs-light.png",
+      "youtubeVideoId": "_uPcoENe5GI",
+      "duration": "0:45",
+      "sourceTemplateId": null
+    },
+    "news/tech-dark": {
+      "thumbnailUrl": "/template-previews/news--tech-dark.png",
+      "youtubeVideoId": "WCyljiQUKgs",
+      "duration": "0:43",
+      "sourceTemplateId": null
+    },
+    "news/tech-light": {
+      "thumbnailUrl": "/template-previews/news--tech-light.png",
+      "youtubeVideoId": "cJQ_bGaWhBY",
+      "duration": "0:42",
+      "sourceTemplateId": null
+    },
+    "news/current-affairs-dark": {
+      "thumbnailUrl": "/template-previews/news--current-affairs-dark.png",
+      "youtubeVideoId": "wz9cPy_O0DM",
+      "duration": "0:45",
+      "sourceTemplateId": null
+    },
+    "news/real-estate-civic-light": {
+      "thumbnailUrl": "/template-previews/news--real-estate-civic-light.png",
+      "youtubeVideoId": "oWXeXEG4DjM",
+      "duration": "0:46",
+      "sourceTemplateId": null
+    },
+    "news/real-estate-civic-dark": {
+      "thumbnailUrl": "/template-previews/news--real-estate-civic-dark.png",
+      "youtubeVideoId": "3PlZF9UgwYA",
+      "duration": "0:46",
+      "sourceTemplateId": null
+    },
+    "news/entertainment-magazine-light": {
+      "thumbnailUrl": "/template-previews/news--entertainment-magazine-light.png",
+      "youtubeVideoId": "6hpgNln92O4",
+      "duration": "0:40",
+      "sourceTemplateId": null
+    },
+    "news/entertainment-premiere-dark": {
+      "thumbnailUrl": "/template-previews/news--entertainment-premiere-dark.png",
+      "youtubeVideoId": "AHHqgsILDio",
+      "duration": "0:41",
+      "sourceTemplateId": null
+    },
+    "news/sports-arena-dark": {
+      "thumbnailUrl": "/template-previews/news--sports-arena-dark.png",
+      "youtubeVideoId": "5iA270GnFz8",
+      "duration": "0:38",
+      "sourceTemplateId": null
+    },
+    "news/sports-briefing-light": {
+      "thumbnailUrl": "/template-previews/news--sports-briefing-light.png",
+      "youtubeVideoId": "GJwgQ-AVFbU",
+      "duration": "0:38",
+      "sourceTemplateId": null
+    },
+    "news/health-briefing-light": {
+      "thumbnailUrl": "/template-previews/news--health-briefing-light.png",
+      "youtubeVideoId": "mmqHlbAM8sc",
+      "duration": "0:44",
+      "sourceTemplateId": null
+    },
+    "news/health-public-alert": {
+      "thumbnailUrl": "/template-previews/news--health-public-alert.png",
+      "youtubeVideoId": "Gwv4lALPKzE",
+      "duration": "0:42",
+      "sourceTemplateId": null
+    },
+    "news/business-terminal-dark": {
+      "thumbnailUrl": "/template-previews/news--business-terminal-dark.png",
+      "youtubeVideoId": "zPK7aKkKjfk",
+      "duration": "0:43",
+      "sourceTemplateId": null
+    },
+    "news/business-ledger-light": {
+      "thumbnailUrl": "/template-previews/news--business-ledger-light.png",
+      "youtubeVideoId": "fnDEg5-JR0I",
+      "duration": "0:43",
+      "sourceTemplateId": null
+    },
+    "news/travel-postcard-light": {
+      "thumbnailUrl": "/template-previews/news--travel-postcard-light.png",
+      "youtubeVideoId": "yfTvxZbuzHg",
+      "duration": "0:39",
+      "sourceTemplateId": null
+    },
+    "news/travel-guide-light": {
+      "thumbnailUrl": "/template-previews/news--travel-guide-light.png",
+      "youtubeVideoId": "8QL-ErCuqGc",
+      "duration": "0:40",
+      "sourceTemplateId": null
+    },
+    "news/auto-showroom-dark": {
+      "thumbnailUrl": "/template-previews/news--auto-showroom-dark.png",
+      "youtubeVideoId": "B8aXxk-CPkE",
+      "duration": "0:41",
+      "sourceTemplateId": null
+    },
+    "news/auto-market-light": {
+      "thumbnailUrl": "/template-previews/news--auto-market-light.png",
+      "youtubeVideoId": "itfRawjPb_M",
+      "duration": "0:41",
+      "sourceTemplateId": null
+    },
+    "news/education-briefing-light": {
+      "thumbnailUrl": "/template-previews/news--education-briefing-light.png",
+      "youtubeVideoId": "a2PZtVXurP4",
+      "duration": "0:44",
+      "sourceTemplateId": null
+    },
+    "news/education-campus-light": {
+      "thumbnailUrl": "/template-previews/news--education-campus-light.png",
+      "youtubeVideoId": "25zA0Q4Qpf0",
+      "duration": "0:44",
+      "sourceTemplateId": null
+    }
+  }
+}
