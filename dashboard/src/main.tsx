@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState, type RefObject} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject} from 'react';
 import {createRoot} from 'react-dom/client';
 import {dashboardApi} from './api';
 import {
@@ -9,40 +9,48 @@ import {
   CircleAlert,
   Clapperboard,
   Command,
+  Eye,
+  EyeOff,
   FileVideo,
   LibraryBig,
   HardDrive,
   Image,
   LayoutDashboard,
+  KeyRound,
   ListFilter,
   LoaderCircle,
   Menu,
   Music2,
+  Pencil,
   Play,
   Search,
   Settings2,
+  Save,
   SlidersHorizontal,
   Upload,
   Video,
   Volume2,
   X,
+  Trash2,
 } from './icons';
-import type {Overview, TemplateEntry, VideoArtifact, Watermark} from './types';
+import type {ApiUsage, Overview, TemplateEntry, VideoArtifact, Watermark} from './types';
 import './dashboard.css';
 
-type Screen = 'overview' | 'videos' | 'templates' | 'settings';
+type Screen = 'overview' | 'videos' | 'templates' | 'api-usage' | 'settings';
 
 interface DashboardData {
   overview: Overview;
   videos: VideoArtifact[];
   templates: TemplateEntry[];
   watermark: Watermark;
+  apiUsage: ApiUsage;
 }
 
 const navigation = [
   {id: 'overview', label: 'Tổng quan', icon: LayoutDashboard},
   {id: 'videos', label: 'Kho video', icon: LibraryBig},
   {id: 'templates', label: 'Templates', icon: Boxes},
+  {id: 'api-usage', label: 'API usage', icon: Command},
   {id: 'settings', label: 'Hệ thống', icon: Settings2},
 ] as const;
 
@@ -144,13 +152,14 @@ function App() {
     if (initial) setIsLoading(true);
     else setIsRefreshing(true);
     try {
-      const [overview, videos, templates, watermark] = await Promise.all([
+      const [overview, videos, templates, watermark, apiUsage] = await Promise.all([
         dashboardApi.overview(),
         dashboardApi.videos(),
         dashboardApi.templates(),
         dashboardApi.watermark(),
+        dashboardApi.apiUsage(),
       ]);
-      setData({overview, videos, templates, watermark});
+      setData({overview, videos, templates, watermark, apiUsage});
       setSelectedTemplateId((current) => current ?? templates[0]?.id ?? null);
     } catch {
       setError('Không thể đọc dữ liệu từ project. Hãy kiểm tra Dashboard API rồi thử lại.');
@@ -397,6 +406,7 @@ function App() {
                   onSelect={setSelectedTemplateId}
                 />
               )}
+              {screen === 'api-usage' && <ApiUsageScreen apiUsage={data.apiUsage} onSaved={(apiUsage) => setData((current) => current ? {...current, apiUsage} : current)} />}
               {screen === 'settings' && (
                 <SystemScreen
                   overview={data.overview}
@@ -968,6 +978,147 @@ function SystemScreen({
           <p className="watermark-panel__hint">Chỉ nhận PNG tối đa 10 MB. Hệ thống sẽ yêu cầu xác nhận trước khi ghi đè.</p>
           {uploadError && <p className="watermark-panel__error" role="alert">{uploadError}</p>}
         </div>
+      </section>
+    </>
+  );
+}
+
+function ApiUsageChart({apiUsage}: {apiUsage: ApiUsage}) {
+  const points = apiUsage.daily;
+  if (!points.length) return <p className="usage-chart__empty">Chưa có request trong {apiUsage.periodDays} ngày qua để vẽ biểu đồ.</p>;
+  const maximum = Math.max(...points.map((item) => item.requests), 1);
+  const lastIndex = Math.max(points.length - 1, 1);
+  const path = points.map((item, index) => {
+    const x = 8 + (index / lastIndex) * 284;
+    const y = 82 - (item.requests / maximum) * 66;
+    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ');
+  return (
+    <div className="usage-chart" role="img" aria-label={`Biểu đồ ${points.length} ngày có request API, cao nhất ${maximum} request mỗi ngày`}>
+      <svg viewBox="0 0 300 92" preserveAspectRatio="none" aria-hidden="true">
+        <path className="usage-chart__rule" d="M 8 16 H 292 M 8 49 H 292 M 8 82 H 292" />
+        <path className="usage-chart__line" d={path} />
+        {points.map((item, index) => {
+          const x = 8 + (index / lastIndex) * 284;
+          const y = 82 - (item.requests / maximum) * 66;
+          return <circle className="usage-chart__point" key={item.day} cx={x} cy={y} r="2.5" />;
+        })}
+      </svg>
+      <div className="usage-chart__labels"><span>{points[0]?.day}</span><span>{points.at(-1)?.day}</span></div>
+    </div>
+  );
+}
+
+function ApiUsageScreen({apiUsage, onSaved}: {apiUsage: ApiUsage; onSaved: (apiUsage: ApiUsage) => void}) {
+  const totalRequests = apiUsage.providers.reduce((total, provider) => total + provider.requests, 0);
+  const totalSucceeded = apiUsage.providers.reduce((total, provider) => total + provider.succeeded, 0);
+  const keyDialog = useRef<HTMLDialogElement>(null);
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [keyValue, setKeyValue] = useState('');
+  const [keyVisible, setKeyVisible] = useState(false);
+  const [savingProvider, setSavingProvider] = useState<string | null>(null);
+  const [keyMessage, setKeyMessage] = useState<string | null>(null);
+  const editingProvider = apiUsage.providers.find((provider) => provider.id === editingProviderId) ?? null;
+
+  const openEditor = async (providerId: string) => {
+    setEditingProviderId(providerId);
+    setKeyVisible(false);
+    setKeyMessage(null);
+    setSavingProvider(providerId);
+    try {
+      const connection = await dashboardApi.apiKeyConnection(providerId);
+      setKeyValue(connection.value);
+      keyDialog.current?.showModal();
+    } catch (error) {
+      setKeyMessage(error instanceof Error ? error.message : 'Không thể đọc API key.');
+    } finally {
+      setSavingProvider(null);
+    }
+  };
+
+  const closeEditor = () => {
+    keyDialog.current?.close();
+    setEditingProviderId(null);
+    setKeyValue('');
+    setKeyMessage(null);
+  };
+
+  const saveKey = async () => {
+    if (!editingProvider) return;
+    const value = keyValue.trim();
+    if (!value) {
+      setKeyMessage('Nhập API key trước khi lưu.');
+      return;
+    }
+    setSavingProvider(editingProvider.id);
+    setKeyMessage(null);
+    try {
+      onSaved(await dashboardApi.updateApiKey(editingProvider.id, value));
+      closeEditor();
+    } catch (error) {
+      setKeyMessage(error instanceof Error ? error.message : 'Không thể lưu API key.');
+    } finally {
+      setSavingProvider(null);
+    }
+  };
+
+  const changeConnection = async (providerId: string, action: 'clear' | 'disable') => {
+    setSavingProvider(providerId);
+    try {
+      const provider = apiUsage.providers.find((item) => item.id === providerId);
+      onSaved(action === 'clear'
+        ? await dashboardApi.clearApiKey(providerId)
+        : await dashboardApi.setApiKeyDisabled(providerId, !provider?.disabled));
+    } finally {
+      setSavingProvider(null);
+    }
+  };
+  return (
+    <>
+      <section className="page-heading page-heading--utility">
+        <div><h1>API usage</h1></div>
+        <p>Telemetry cục bộ trong {apiUsage.periodDays} ngày; API key chỉ được lưu trong .env, không nằm trong telemetry.</p>
+      </section>
+      <section className="usage-overview" aria-labelledby="usage-overview-heading">
+        <div className="usage-overview__heading">
+          <div><h2 id="usage-overview-heading">Tổng quan request</h2><p>{totalRequests} request đã được ghi nhận · {totalSucceeded} thành công</p></div>
+          <span className="usage-overview__period">{apiUsage.periodDays} ngày</span>
+        </div>
+        <ApiUsageChart apiUsage={apiUsage} />
+      </section>
+      <section className="usage-provider-grid" aria-label="API key và usage theo nhà cung cấp">
+        {apiUsage.providers.map((provider) => (
+          <article className={`usage-provider ${provider.disabled ? 'usage-provider--disabled' : ''}`} key={provider.id}>
+            <header>
+              <div className="usage-provider__identity"><span className="usage-provider__mark" aria-hidden="true"><KeyRound size={17} /></span><div><h2>{provider.label}</h2><p>{provider.operation} · API key cục bộ</p></div></div>
+              <div className="connection-actions" aria-label={`Thao tác với ${provider.label}`}>
+                <button className="icon-button" type="button" disabled={savingProvider === provider.id} onClick={() => void openEditor(provider.id)} aria-label={`Edit connection ${provider.label}`} title="Edit connection"><Pencil aria-hidden="true" size={17} /></button>
+                <button className="icon-button connection-actions__clear" type="button" disabled={!provider.configured || savingProvider === provider.id} onClick={() => void changeConnection(provider.id, 'clear')} aria-label={`Clear key connection ${provider.label}`} title="Clear key connection"><Trash2 aria-hidden="true" size={17} /></button>
+                <label className="connection-switch" title={provider.disabled ? `Enable key ${provider.label}` : `Disable key ${provider.label}`}>
+                  <span className="sr-only">{provider.disabled ? `Enable key ${provider.label}` : `Disable key ${provider.label}`}</span>
+                  <input type="checkbox" checked={!provider.disabled} disabled={!provider.configured || savingProvider === provider.id} onChange={() => void changeConnection(provider.id, 'disable')} />
+                  <span className="connection-switch__track" aria-hidden="true"><span /></span>
+                </label>
+              </div>
+            </header>
+            <div className="usage-provider__meter"><div><span>Request</span><strong>{provider.requests}</strong></div><div className="usage-provider__track"><span style={{'--usage-progress': `${provider.requests ? 100 : 0}%`} as CSSProperties} /></div><p>{provider.succeeded} thành công · {provider.failed} lỗi</p></div>
+            <dl><div><dt>{provider.operation === 'TTS' ? 'Ký tự gửi' : 'Audio gửi'}</dt><dd>{provider.operation === 'TTS' ? provider.inputChars.toLocaleString('vi-VN') : formatFileSize(provider.inputBytes)}</dd></div><div><dt>Lần ghi nhận cuối</dt><dd>{provider.latestAt ? formatDate(provider.latestAt) : '—'}</dd></div></dl>
+          </article>
+        ))}
+      </section>
+      <dialog className="api-key-dialog" ref={keyDialog} onClose={closeEditor} onClick={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
+        {editingProvider && <form className="api-key-dialog__body" onSubmit={(event) => { event.preventDefault(); void saveKey(); }}>
+          <div className="dialog-heading"><div><p>{editingProvider.keyName}</p><h2>Edit connection</h2></div><button className="icon-button" type="button" onClick={closeEditor} aria-label="Đóng cửa sổ chỉnh key"><X aria-hidden="true" size={19} /></button></div>
+          <label className="api-key-dialog__label" htmlFor="editing-api-key">API key · {editingProvider.label}</label>
+          <div className="api-key-dialog__field"><KeyRound aria-hidden="true" size={16} /><input id="editing-api-key" autoComplete="off" type={keyVisible ? 'text' : 'password'} value={keyValue} onChange={(event) => setKeyValue(event.target.value)} placeholder="Dán API key" autoFocus /><button className="icon-button" type="button" aria-label={keyVisible ? 'Ẩn API key' : 'Hiện API key'} onClick={() => setKeyVisible((visible) => !visible)}>{keyVisible ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+          {keyMessage && <p className="api-key-dialog__message" role="alert">{keyMessage}</p>}
+          <div className="api-key-dialog__actions"><button className="button button--secondary" type="button" onClick={closeEditor} disabled={savingProvider === editingProvider.id}>Hủy</button><button className="button button--primary" type="submit" disabled={savingProvider === editingProvider.id}>{savingProvider === editingProvider.id ? <LoaderCircle className="is-spinning" size={16} /> : <Save size={16} />} {savingProvider === editingProvider.id ? 'Đang lưu' : 'Lưu key'}</button></div>
+        </form>}
+      </dialog>
+      <section className="usage-recent" aria-labelledby="recent-api-request-heading">
+        <div className="section-heading"><div><h2 id="recent-api-request-heading">Request gần đây</h2><p>Chỉ metadata vận hành được hiển thị.</p></div></div>
+        {apiUsage.recent.length ? <div className="usage-recent__list">{apiUsage.recent.map((event, index) => <div className="usage-event" key={`${event.at}-${event.provider}-${index}`}><div><strong>{event.provider}</strong><span>{event.operation}{event.model ? ` · ${event.model}` : ''}{event.slug ? ` · ${event.slug}` : ''}</span></div><span className={`status-chip ${event.status === 'succeeded' ? 'status-chip--ready' : 'status-chip--incomplete'}`}>{event.status === 'succeeded' ? 'Thành công' : 'Lỗi'}</span><time dateTime={event.at}>{formatDate(event.at)}</time></div>)}</div> : <p className="usage-empty">Dữ liệu sẽ xuất hiện sau khi chạy TTS hoặc transcribe.</p>}
+        <p className="usage-note">Đây là usage ghi nhận bởi project, không phải quota hay chi phí chính thức của nhà cung cấp.</p>
       </section>
     </>
   );

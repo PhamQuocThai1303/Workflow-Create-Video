@@ -30,6 +30,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {recordApiUsage} from './api-usage.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -72,9 +73,10 @@ if (!fs.existsSync(audioPath)) {
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const groqApiKey = process.env.GROQ_API_KEY;
+const disabledApiProviders = new Set((process.env.DASHBOARD_DISABLED_API_KEYS ?? '').split(',').map((item) => item.trim()));
+const groqApiKey = disabledApiProviders.has('groq') ? '' : process.env.GROQ_API_KEY;
 const groqModel = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
-const sttApiKey = process.env.STT_API_KEY;
+const sttApiKey = disabledApiProviders.has('stt.ai') ? '' : process.env.STT_API_KEY;
 const language = process.env.STT_LANGUAGE || 'vi';
 
 if (!groqApiKey && !sttApiKey) {
@@ -187,6 +189,7 @@ function normalizeSttAiResponse(data) {
 }
 
 async function transcribeWithGroq() {
+  const startedAt = Date.now();
   console.log('   Provider: Groq');
   console.log(`   Model:    ${groqModel}`);
 
@@ -216,10 +219,13 @@ async function transcribeWithGroq() {
   }
 
   const data = await response.json();
-  return normalizeGroqResponse(data);
+  const timeline = normalizeGroqResponse(data);
+  await recordApiUsage({provider: 'groq', operation: 'transcribe', status: 'succeeded', slug, model: groqModel, inputBytes: audioBuffer.length, durationSeconds: timeline.duration, latencyMs: Date.now() - startedAt});
+  return timeline;
 }
 
 async function transcribeWithSttAi() {
+  const startedAt = Date.now();
   console.log('   Provider: api.stt.ai');
 
   const audioBuffer = fs.readFileSync(audioPath);
@@ -244,7 +250,9 @@ async function transcribeWithSttAi() {
   }
 
   const data = await response.json();
-  return normalizeSttAiResponse(data);
+  const timeline = normalizeSttAiResponse(data);
+  await recordApiUsage({provider: 'stt.ai', operation: 'transcribe', status: 'succeeded', slug, inputBytes: audioBuffer.length, durationSeconds: timeline.duration, latencyMs: Date.now() - startedAt});
+  return timeline;
 }
 
 async function transcribe() {
@@ -252,6 +260,7 @@ async function transcribe() {
     try {
       return await transcribeWithGroq();
     } catch (err) {
+      await recordApiUsage({provider: 'groq', operation: 'transcribe', status: 'failed', slug, model: groqModel, inputBytes: fs.statSync(audioPath).size});
       if (!sttApiKey) {
         throw err;
       }
@@ -261,7 +270,12 @@ async function transcribe() {
   }
 
   if (sttApiKey) {
-    return transcribeWithSttAi();
+    try {
+      return await transcribeWithSttAi();
+    } catch (err) {
+      await recordApiUsage({provider: 'stt.ai', operation: 'transcribe', status: 'failed', slug, inputBytes: fs.statSync(audioPath).size});
+      throw err;
+    }
   }
 
   throw new Error('No STT provider available');

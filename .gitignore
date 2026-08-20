@@ -41,3 +41,6 @@ load-templates/*
 # Build / cache
 .remotion/
 dist/
+
+# Local dashboard usage history (contains operational metadata only)
+

@@ -22,6 +22,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import {recordApiUsage} from './api-usage.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -158,6 +159,7 @@ if (fs.existsSync(outputPath) && !force) {
 
 // ─── Gemini TTS ───────────────────────────────────────────────────────────────
 async function generateWithGemini(narration, outPath) {
+  const startedAt = Date.now();
   const apiKey = process.env.GEMINI_API_KEY;
   // Priority: template voice config → .env GEMINI_TTS_VOICE → default
   const voice = templateVoice.geminiVoice || process.env.GEMINI_TTS_VOICE || 'Achird';
@@ -221,11 +223,17 @@ async function generateWithGemini(narration, outPath) {
   });
 
   const stat = fs.statSync(outPath);
+  await recordApiUsage({
+    provider: 'gemini', operation: 'tts', status: 'succeeded', slug,
+    model: 'gemini-2.5-flash-preview-tts', inputChars: narration.length,
+    outputBytes: stat.size, latencyMs: Date.now() - startedAt,
+  });
   console.error(`   ✅ Saved to ${outPath} (${(stat.size / 1024).toFixed(1)} KB)`);
 }
 
 // ─── ElevenLabs ───────────────────────────────────────────────────────────────
 async function generateWithElevenLabs(narration, outPath) {
+  const startedAt = Date.now();
   const apiKey = process.env.ELEVENLABS_API_KEY;
   // Priority: template voice config → .env ELEVENLABS_VOICE_ID → built-in default
   const voiceId = templateVoice.elevenLabsVoiceId
@@ -260,6 +268,11 @@ async function generateWithElevenLabs(narration, outPath) {
   }
 
   fs.writeFileSync(outPath, buffer);
+  await recordApiUsage({
+    provider: 'elevenlabs', operation: 'tts', status: 'succeeded', slug,
+    model: 'eleven_v3', inputChars: narration.length, outputBytes: buffer.length,
+    latencyMs: Date.now() - startedAt,
+  });
   console.error(`   ✅ Saved to ${outPath} (${(buffer.length / 1024).toFixed(1)} KB)`);
 }
 
@@ -267,22 +280,26 @@ async function generateWithElevenLabs(narration, outPath) {
 console.error(`\n📝 Script text (${fullText.length} chars):`);
 console.error(`   "${fullText.slice(0, 80)}${fullText.length > 80 ? '...' : ''}"`);
 
-if (process.env.ELEVENLABS_API_KEY) {
+const disabledApiProviders = new Set((process.env.DASHBOARD_DISABLED_API_KEYS ?? '').split(',').map((item) => item.trim()));
+
+if (process.env.ELEVENLABS_API_KEY && !disabledApiProviders.has('elevenlabs')) {
   try {
     await generateWithElevenLabs(fullText, outputPath);
     console.log(outputPath);
     process.exit(0);
   } catch (err) {
+    await recordApiUsage({provider: 'elevenlabs', operation: 'tts', status: 'failed', slug, model: 'eleven_v3', inputChars: fullText.length});
     console.error(`\n⚠️  ElevenLabs TTS failed: ${err.message} — falling back to Gemini`);
   }
 }
 
-if (process.env.GEMINI_API_KEY) {
+if (process.env.GEMINI_API_KEY && !disabledApiProviders.has('gemini')) {
   try {
     await generateWithGemini(fullText, outputPath);
     console.log(outputPath);
     process.exit(0);
   } catch (err) {
+    await recordApiUsage({provider: 'gemini', operation: 'tts', status: 'failed', slug, model: 'gemini-2.5-flash-preview-tts', inputChars: fullText.length});
     console.error(`\n⚠️  Gemini TTS failed: ${err.message}`);
   }
 }
