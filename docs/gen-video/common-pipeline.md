@@ -27,7 +27,8 @@ At least one STT key is required. Provider priority is Groq, then api.stt.ai.
 1. Parse and remove command flags before treating the remaining text as context:
    - `--template <template-id>`
    - `--audio=full`, `--audio=music`, `--audio=sfx`, or `--audio=voice-only`
-   - reject unknown/repeated audio values instead of guessing
+   - `--language vi`, `--language en`, or `--language es`
+   - reject unknown/repeated audio or language values instead of guessing
    - halt with the usage message if no clean context remains
 2. Derive `<slug>` from the clean context:
    - lowercase
@@ -57,6 +58,14 @@ public/<slug>/
 `audio.txt` is the durable source of truth for Steps 6-8. The accepted contents
 are `template`, `full`, `music`, `sfx`, and `voice-only`.
 
+9. Resolve the video language and write it to `videos/<slug>/language.txt`:
+   - `--language <vi|en|es>`: write the selected value
+   - omitted flag: write `vi`
+
+`language.txt` is the durable source of truth for generation language and is
+also read by `scripts/transcribe.mjs`. Use `vi` for Vietnamese, `en` for
+English, and `es` for Spanish.
+
 Templates that acquire article media may add template-specific artifacts after
 this step. Follow the selected template document before starting Planner.
 
@@ -68,7 +77,7 @@ Output: `videos/<slug>/plan.json`
 
 ```json
 {
-  "title": "Vietnamese title",
+  "title": "Title in the selected language",
   "hook": "Attention-grabbing opening",
   "segments": [
     {"title": "Segment title", "content_summary": "Segment purpose"}
@@ -80,7 +89,8 @@ Output: `videos/<slug>/plan.json`
 
 Rules:
 
-- Vietnamese, informative, and neutral unless context requires another tone.
+- Use the language stored in `videos/<slug>/language.txt`; be informative and
+  neutral unless context requires another tone.
 - Target 45-100 seconds.
 - Use 3-6 body segments, excluding hook and ending.
 - The hook must create immediate curiosity.
@@ -104,7 +114,8 @@ Output: `videos/<slug>/script/script.json`
 Rules:
 
 - `type` is `hook`, `body`, or `ending`.
-- Every text entry is non-empty Vietnamese.
+- Every text entry is non-empty and uses the language stored in
+  `videos/<slug>/language.txt`.
 - Total spoken duration should remain 45-100 seconds.
 
 ## Step 4: Audio

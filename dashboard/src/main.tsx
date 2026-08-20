@@ -17,6 +17,7 @@ import {
   Image,
   LayoutDashboard,
   KeyRound,
+  Languages,
   ListFilter,
   LoaderCircle,
   Menu,
@@ -804,9 +805,18 @@ function TemplatesScreen({
   );
 }
 
+type VideoLanguage = 'vi' | 'en' | 'es';
+
+const videoLanguages: Array<{id: VideoLanguage; label: string; detail: string}> = [
+  {id: 'vi', label: 'Việt Nam', detail: 'Tiếng Việt'},
+  {id: 'en', label: 'English', detail: 'English'},
+  {id: 'es', label: 'Español', detail: 'Tây Ban Nha'},
+];
+
 function TemplateCommand({templateId}: {templateId: string}) {
   const [copyState, setCopyState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const command = `/gen-video --template ${templateId} <nội-dung-video>`;
+  const [language, setLanguage] = useState<VideoLanguage>('vi');
+  const command = `/gen-video --template ${templateId} --language ${language} <nội-dung-video>`;
 
   const copyCommand = async () => {
     setCopyState('loading');
@@ -828,7 +838,27 @@ function TemplateCommand({templateId}: {templateId: string}) {
 
   return (
     <section className="template-command" aria-labelledby={`command-${templateId}`}>
-      <h3 id={`command-${templateId}`}>Lệnh tạo video</h3>
+      <div className="template-command__heading">
+        <div>
+          <h3 id={`command-${templateId}`}>Lệnh tạo video</h3>
+          <p>Chọn ngôn ngữ cho nội dung, lời đọc và phụ đề.</p>
+        </div>
+        <Languages aria-hidden="true" size={17} />
+      </div>
+      <div className="language-picker" role="group" aria-label="Ngôn ngữ tạo video">
+        {videoLanguages.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={language === item.id}
+            className={`language-picker__option ${language === item.id ? 'language-picker__option--selected' : ''}`}
+            onClick={() => setLanguage(item.id)}
+          >
+            <span>{item.label}</span>
+            <small>{item.detail}</small>
+          </button>
+        ))}
+      </div>
       <div className="template-command__row">
         <code>{command}</code>
         <button

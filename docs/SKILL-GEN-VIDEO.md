@@ -1,4 +1,4 @@
-# /gen-video [--template <id>] [--audio=<mode>] <context> - Video Generation Router
+# /gen-video [--template <id>] [--audio=<mode>] [--language <vi|en|es>] <context> - Video Generation Router
 
 ## Trigger
 
@@ -9,11 +9,13 @@ Run when the user types:
 /gen-video --template <template-id> <context>
 /gen-video --audio=<mode> <context>
 /gen-video --template <template-id> --audio=<mode> <context>
+/gen-video --template <template-id> --language <vi|en|es> <context>
 ```
 
-`<mode>` must be one of `full`, `music`, `sfx`, or `voice-only`. Flags may
-appear before the context in either order. Strip recognized flags before
-validating or writing the context.
+`<mode>` must be one of `full`, `music`, `sfx`, or `voice-only`. `<language>`
+must be one of `vi`, `en`, or `es`. Flags may appear before the context in any
+order. Strip recognized flags before validating or writing the context; reject
+unknown or repeated language values.
 
 The selected template document defines any additional input contract, such as a
 required public URL, article page, media source, or demo target. Do not encode
@@ -28,6 +30,9 @@ Every generation uses a registered template and writes `videos/<slug>/spec.json`
 - Without `--audio`, use the selected template's existing audio contract.
 - With `--audio`, apply the generic Audio Mode Contract below. It overrides
   conflicting music or SFX requirements in the selected template document.
+- With `--language`, create narration, generated content, and subtitles in the
+  selected language: `vi` (Vietnamese), `en` (English), or `es` (Spanish).
+  When omitted, use `vi`.
 - The registry `behavior` field identifies whether the template is `fixed`,
   `hybrid`, or `creative`.
 - The selected template document is the source of truth for visual decisions,

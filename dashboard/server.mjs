@@ -1,6 +1,7 @@
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
-import {readFile, readdir, rename, stat, unlink, writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {mkdir, readFile, readdir, rename, stat, unlink, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import vm from 'node:vm';
@@ -15,6 +16,7 @@ const slugPattern = /^[a-z0-9][a-z0-9-]*$/;
 const watermarkPath = path.join(root, 'public', 'watermark.png');
 const templatePreviewManifestPath = path.join(root, 'public', 'template-previews', 'manifest.json');
 const apiUsagePath = path.join(root, '.dashboard', 'api-usage.ndjson');
+const voicePreviewCacheDir = path.join(root, '.dashboard', 'voice-previews');
 const envPath = path.join(root, '.env');
 const maxWatermarkBytes = 10 * 1024 * 1024;
 const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -275,22 +277,39 @@ async function previewVoice(request) {
   const provider = payload?.provider === 'gemini' || payload?.provider === 'elevenlabs' ? payload.provider : null;
   const voiceId = typeof payload?.voiceId === 'string' ? payload.voiceId.trim() : '';
   if (!provider || !voiceId) throw new HttpError(400, 'Voice selection is required.');
+  const extension = provider === 'gemini' ? 'wav' : 'mp3';
+  // Keep the filename opaque: voice IDs are provider data and should not become paths.
+  const cacheKey = createHash('sha256').update(`v1:${provider}:${voiceId}:Xin chào`).digest('hex');
+  const cachePath = path.join(voicePreviewCacheDir, `${cacheKey}.${extension}`);
+  try {
+    const cached = await readFile(cachePath);
+    if (cached.length) return {contentType: provider === 'gemini' ? 'audio/wav' : 'audio/mpeg', body: cached, cached: true};
+  } catch {
+    // A cache miss intentionally falls through to generate one preview.
+  }
   const environment = readEnvironment(await readFile(envPath, 'utf8').catch(() => ''));
+  let preview;
   if (provider === 'elevenlabs') {
     if (!environment.ELEVENLABS_API_KEY) throw new HttpError(409, 'ElevenLabs API key chưa được kết nối.');
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {method: 'POST', headers: {'xi-api-key': environment.ELEVENLABS_API_KEY, 'Content-Type': 'application/json'}, body: JSON.stringify({text: 'Xin chào', model_id: 'eleven_v3', output_format: 'mp3_44100_128'})});
     if (!response.ok) throw new HttpError(502, 'Không thể tạo audio preview ElevenLabs.');
-    return {contentType: 'audio/mpeg', body: Buffer.from(await response.arrayBuffer())};
+    preview = {contentType: 'audio/mpeg', body: Buffer.from(await response.arrayBuffer())};
+  } else {
+    if (!environment.GEMINI_API_KEY) throw new HttpError(409, 'Gemini API key chưa được kết nối.');
+    if (!geminiVoices.some((voice) => voice.id === voiceId)) throw new HttpError(400, 'Unknown Gemini voice.');
+    const {GoogleGenAI} = await import('@google/genai');
+    const ai = new GoogleGenAI({apiKey: environment.GEMINI_API_KEY});
+    const result = await ai.models.generateContent({model: 'gemini-2.5-flash-preview-tts', contents: [{parts: [{text: 'Xin chào'}]}], config: {responseModalities: ['AUDIO'], speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: voiceId}}}}});
+    const pcm = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!pcm) throw new HttpError(502, 'Gemini did not return preview audio.');
+    const raw = Buffer.from(pcm, 'base64'); const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(36 + raw.length, 4); header.write('WAVE', 8); header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(24000, 24); header.writeUInt32LE(48000, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(raw.length, 40);
+    preview = {contentType: 'audio/wav', body: Buffer.concat([header, raw])};
   }
-  if (!environment.GEMINI_API_KEY) throw new HttpError(409, 'Gemini API key chưa được kết nối.');
-  if (!geminiVoices.some((voice) => voice.id === voiceId)) throw new HttpError(400, 'Unknown Gemini voice.');
-  const {GoogleGenAI} = await import('@google/genai');
-  const ai = new GoogleGenAI({apiKey: environment.GEMINI_API_KEY});
-  const result = await ai.models.generateContent({model: 'gemini-2.5-flash-preview-tts', contents: [{parts: [{text: 'Xin chào'}]}], config: {responseModalities: ['AUDIO'], speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: voiceId}}}}});
-  const pcm = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!pcm) throw new HttpError(502, 'Gemini did not return preview audio.');
-  const raw = Buffer.from(pcm, 'base64'); const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(36 + raw.length, 4); header.write('WAVE', 8); header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(24000, 24); header.writeUInt32LE(48000, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(raw.length, 40);
-  return {contentType: 'audio/wav', body: Buffer.concat([header, raw])};
+  await mkdir(voicePreviewCacheDir, {recursive: true});
+  await writeFile(cachePath, preview.body, {flag: 'wx'}).catch((error) => {
+    if (error?.code !== 'EEXIST') throw error;
+  });
+  return {...preview, cached: false};
 }
 
 async function clearApiKey(providerId) {
@@ -430,7 +449,7 @@ const server = createServer(async (request, response) => {
     if (request.method === 'PATCH' && url.pathname === '/api/voices') return sendJson(response, 200, await updateVoice(request));
     if (request.method === 'POST' && url.pathname === '/api/voices/preview') {
       const preview = await previewVoice(request);
-      response.writeHead(200, {'Content-Type': preview.contentType, 'Cache-Control': 'no-store'});
+      response.writeHead(200, {'Content-Type': preview.contentType, 'Cache-Control': 'private, max-age=31536000, immutable', 'X-Voice-Preview-Cache': preview.cached ? 'hit' : 'miss'});
       return response.end(preview.body);
     }
     const apiKeyMatch = /^\/api\/api-keys\/([a-z0-9.-]+)$/.exec(url.pathname);

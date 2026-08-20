@@ -77,7 +77,10 @@ const disabledApiProviders = new Set((process.env.DASHBOARD_DISABLED_API_KEYS ??
 const groqApiKey = disabledApiProviders.has('groq') ? '' : process.env.GROQ_API_KEY;
 const groqModel = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
 const sttApiKey = disabledApiProviders.has('stt.ai') ? '' : process.env.STT_API_KEY;
-const language = process.env.STT_LANGUAGE || 'vi';
+const languageFile = path.join(ROOT, 'videos', slug, 'language.txt');
+const artifactLanguage = fs.existsSync(languageFile) ? fs.readFileSync(languageFile, 'utf8').trim() : '';
+const acceptedLanguages = new Set(['vi', 'en', 'es']);
+const language = acceptedLanguages.has(artifactLanguage) ? artifactLanguage : process.env.STT_LANGUAGE || 'vi';
 
 if (!groqApiKey && !sttApiKey) {
   console.error('Error: set GROQ_API_KEY or STT_API_KEY in .env');

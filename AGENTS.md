@@ -11,7 +11,7 @@ All workflow documentation lives in `docs/` — read it before executing any com
 Automatically installs all dependencies and configures the environment.
 Full instructions: [docs/SKILL-SETUP.md](docs/SKILL-SETUP.md)
 
-### `/gen-video [--template <template-id>] [--audio=<mode>] <context>`
+### `/gen-video [--template <template-id>] [--audio=<mode>] [--language <vi|en|es>] <context>`
 Generates a short-form video from text context using Remotion + AI voiceover.
 `<mode>` is `full`, `music`, `sfx`, or `voice-only`. When omitted, each
 template keeps its existing audio behavior.
@@ -88,7 +88,7 @@ approval-aware Execution Contract. Treat approvals as pauses inside the same
 run, resume automatically after approval, and persist until setup is verified
 or a genuine external blocker is reached.
 
-When the user types `/gen-video [--template <template-id>] [--audio=<mode>] <context>`:
+When the user types `/gen-video [--template <template-id>] [--audio=<mode>] [--language <vi|en|es>] <context>`:
 → Read `docs/SKILL-GEN-VIDEO.md` and execute the 8-step pipeline:
   Setup → Planner → Teller → Audio → Transcribe → Spec → Coder → Render
 
@@ -140,7 +140,7 @@ The canonical docs in `docs/` are the single source of truth.
 ## Pipeline Overview
 
 ```
-/gen-video [--audio=<mode>] <context>
+/gen-video [--audio=<mode>] [--language <vi|en|es>] <context>
   Step 1: Setup        → videos/<slug>/context.txt, audio.txt, directories
   Step 2: Planner      → videos/<slug>/plan.json
   Step 3: Teller       → videos/<slug>/script/script.json

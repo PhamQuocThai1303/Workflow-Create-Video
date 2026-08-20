@@ -14,6 +14,7 @@ export {
   Image,
   LayoutDashboard,
   KeyRound,
+  Languages,
   ListFilter,
   LoaderCircle,
   Menu,
