@@ -1,4 +1,4 @@
-import type {ApiKeyConnection, ApiUsage, Overview, TemplateEntry, VideoArtifact, Watermark} from './types';
+import type {ApiKeyConnection, ApiUsage, Overview, TemplateEntry, VideoArtifact, VoiceSettings, Watermark} from './types';
 
 async function request<T>(path: string): Promise<T> {
   const response = await fetch(path, {headers: {Accept: 'application/json'}});
@@ -49,6 +49,18 @@ export const dashboardApi = {
   templates: () => request<TemplateEntry[]>('/api/templates'),
   watermark: () => request<Watermark>('/api/watermark'),
   apiUsage: () => request<ApiUsage>('/api/api-usage'),
+  voices: () => request<VoiceSettings>('/api/voices'),
+  updateVoice: async (provider: 'gemini' | 'elevenlabs', voiceId: string): Promise<VoiceSettings> => {
+    const response = await fetch('/api/voices', {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({provider, voiceId})});
+    const payload = await response.json().catch(() => null) as VoiceSettings | {error?: string} | null;
+    if (!response.ok) throw new Error(payload && 'error' in payload ? payload.error ?? 'Could not update voice.' : 'Could not update voice.');
+    return payload as VoiceSettings;
+  },
+  previewVoice: async (provider: 'gemini' | 'elevenlabs', voiceId: string): Promise<Blob> => {
+    const response = await fetch('/api/voices/preview', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({provider, voiceId})});
+    if (!response.ok) { const payload = await response.json().catch(() => null) as {error?: string} | null; throw new Error(payload?.error ?? 'Could not create voice preview.'); }
+    return response.blob();
+  },
   apiKeyConnection,
   clearApiKey: (providerId: string) => changeApiKeyConnection(providerId, 'DELETE'),
   setApiKeyDisabled: (providerId: string, disabled: boolean) => changeApiKeyConnection(providerId, 'PATCH', disabled),

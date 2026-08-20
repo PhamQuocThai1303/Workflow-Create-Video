@@ -94,5 +94,9 @@ export interface ApiUsage {
 
 export interface ApiKeyConnection {
   providerId: string;
-  value: string;
+  configured: boolean;
 }
+
+export interface VoiceOption { id: string; name: string; description: string; }
+export interface VoiceProvider { configured: boolean; selectedId: string; voices: VoiceOption[]; }
+export interface VoiceSettings { gemini: VoiceProvider; elevenlabs: VoiceProvider; }

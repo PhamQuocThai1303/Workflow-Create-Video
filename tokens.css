@@ -1,36 +1,36 @@
 /* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 :root {
-  --color-paper: oklch(98.5% 0.004 250);
-  --color-paper-2: oklch(96% 0.008 250);
-  --color-paper-3: oklch(92.5% 0.012 250);
-  --color-surface: oklch(100% 0.003 250);
-  --color-rule: oklch(87% 0.012 250);
-  --color-rule-strong: oklch(72% 0.02 250);
-  --color-ink: oklch(24% 0.02 258);
-  --color-ink-2: oklch(34% 0.018 257);
-  --color-muted: oklch(47% 0.014 257);
-  --color-faint: oklch(64% 0.012 257);
-  --color-accent: oklch(48% 0.19 256);
-  --color-accent-hover: oklch(43% 0.19 256);
-  --color-accent-ink: oklch(99% 0.002 250);
-  --color-focus: oklch(41% 0.18 256);
+  --color-paper: oklch(98.7% 0.002 285);
+  --color-paper-2: oklch(96.8% 0.004 285);
+  --color-paper-3: oklch(93.5% 0.006 285);
+  --color-surface: oklch(100% 0 0);
+  --color-rule: oklch(89.5% 0.004 285);
+  --color-rule-strong: oklch(80% 0.008 285);
+  --color-ink: oklch(22% 0.012 285);
+  --color-ink-2: oklch(32% 0.01 285);
+  --color-muted: oklch(49% 0.01 285);
+  --color-faint: oklch(67% 0.008 285);
+  --color-accent: oklch(54% 0.19 292);
+  --color-accent-hover: oklch(48% 0.19 292);
+  --color-accent-ink: oklch(99% 0.002 285);
+  --color-focus: oklch(50% 0.17 292);
   --color-success: oklch(40% 0.12 154);
   --color-success-bg: oklch(94% 0.03 154);
   --color-warning: oklch(47% 0.12 82);
   --color-warning-bg: oklch(95% 0.03 82);
   --color-error: oklch(47% 0.18 25);
   --color-error-bg: oklch(95% 0.025 25);
-  --color-graphite: oklch(22% 0.016 260);
-  --color-graphite-2: oklch(28% 0.02 260);
-  --color-code-ink: oklch(92% 0.008 250);
-  --color-code-muted: oklch(70% 0.014 250);
-  --color-shadow: oklch(24% 0.02 258 / 0.08);
-  --color-overlay: oklch(20% 0.02 258 / 0.42);
+  --color-graphite: oklch(24% 0.012 285);
+  --color-graphite-2: oklch(30% 0.012 285);
+  --color-code-ink: oklch(93% 0.004 285);
+  --color-code-muted: oklch(72% 0.008 285);
+  --color-shadow: oklch(22% 0.012 285 / 0.07);
+  --color-overlay: oklch(22% 0.012 285 / 0.36);
 
-  --font-display: "Space Grotesk", ui-sans-serif, sans-serif;
-  --font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-display: "Geist", ui-sans-serif, sans-serif;
+  --font-body: "Geist", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --space-3xs: 0.125rem;
@@ -52,9 +52,9 @@
   --text-2xl: 2.441rem;
   --text-display: clamp(2.1rem, 4vw + 1rem, 3.8rem);
 
-  --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
   --radius-round: 999px;
   --rule: 1px;
   --control-height: 2.75rem;

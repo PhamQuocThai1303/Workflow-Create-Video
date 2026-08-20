@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-08-20",
+    "macrostructure": "Index-First",
+    "theme": "Tally-inspired workspace",
+    "enrichment": "none",
+    "brief": "Redesign internal video operations dashboard with Tally SaaS DNA"
+  },
+  {
     "date": "2026-08-19",
     "macrostructure": "Workbench",
     "theme": "Cobalt",

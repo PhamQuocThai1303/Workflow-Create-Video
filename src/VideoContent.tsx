@@ -2,7 +2,7 @@ import React from 'react';
 import {AbsoluteFill, Audio, Sequence, Series, staticFile} from 'remotion';
 import {Layout, SceneBody, SceneEnding, SceneHook, type NewsTechDarkSpec} from './templates/news/tech-dark';
 import {TRANSITION_SFX} from './templates/creative/free-style-sfx';
-import specData from '../videos/2026-08-19-soft-delete-vs-hard-delete-what-is-the/spec.json';
+import specData from '../videos/2026-08-20-what-are-the-http-status-code-classes-and/spec.json';
 
 const spec = specData as NewsTechDarkSpec;
 const sfx = ['whoosh', 'pageTurn', 'whoosh', 'whip', 'pageTurn', 'whoosh', 'pageTurn'] as const;

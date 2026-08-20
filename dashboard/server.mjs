@@ -29,6 +29,9 @@ const apiKeyProviders = [
   {id: 'cloudflare', label: 'Cloudflare Workers AI', operation: 'Workers AI', keyName: 'CLOUDFLARE_API_TOKEN'},
   {id: 'pexels', label: 'Pexels', operation: 'Media assets', keyName: 'PEXELS_API_KEY'},
 ];
+const geminiVoices = [
+  ['Zephyr', 'Bright'], ['Puck', 'Upbeat'], ['Charon', 'Informative'], ['Kore', 'Firm'], ['Fenrir', 'Excitable'], ['Leda', 'Youthful'], ['Orus', 'Firm'], ['Aoede', 'Breezy'], ['Callirrhoe', 'Easy-going'], ['Autonoe', 'Bright'], ['Enceladus', 'Breathy'], ['Iapetus', 'Clear'], ['Umbriel', 'Easy-going'], ['Algieba', 'Smooth'], ['Despina', 'Smooth'], ['Erinome', 'Clear'], ['Algenib', 'Gravelly'], ['Rasalgethi', 'Informative'], ['Laomedeia', 'Upbeat'], ['Achernar', 'Soft'], ['Anilam', 'Firm'], ['Schedar', 'Even'], ['Gacrux', 'Mature'], ['Pulcherrima', 'Forward'], ['Achird', 'Friendly'], ['Zubenelgenubi', 'Casual'], ['Vindemiatrix', 'Gentle'], ['Sadachbia', 'Lively'], ['Sadaltager', 'Knowledgeable'], ['Sulafat', 'Warm'],
+].map(([id, description]) => ({id, name: id, description}));
 
 class HttpError extends Error {
   constructor(statusCode, message) {
@@ -237,7 +240,57 @@ function apiKeyProvider(providerId) {
 async function apiKeyConnection(providerId) {
   const provider = apiKeyProvider(providerId);
   const environment = readEnvironment(await readFile(envPath, 'utf8').catch(() => ''));
-  return {providerId: provider.id, value: environment[provider.keyName] ?? ''};
+  return {providerId: provider.id, configured: Boolean(environment[provider.keyName])};
+}
+
+async function voices() {
+  const environment = readEnvironment(await readFile(envPath, 'utf8').catch(() => ''));
+  const result = {
+    gemini: {configured: Boolean(environment.GEMINI_API_KEY), selectedId: environment.GEMINI_TTS_VOICE || 'Achird', voices: geminiVoices},
+    elevenlabs: {configured: Boolean(environment.ELEVENLABS_API_KEY), selectedId: environment.ELEVENLABS_VOICE_ID || 'K7ewtjKRNtwwt3lKQ6M0', voices: []},
+  };
+  if (!result.elevenlabs.configured) return result;
+  const response = await fetch('https://api.elevenlabs.io/v1/voices', {headers: {'xi-api-key': environment.ELEVENLABS_API_KEY}});
+  if (!response.ok) throw new HttpError(502, 'Không thể tải danh sách giọng ElevenLabs.');
+  const payload = await response.json();
+  result.elevenlabs.voices = Array.isArray(payload?.voices) ? payload.voices.map((voice) => ({id: String(voice.voice_id), name: String(voice.name ?? voice.voice_id), description: String(voice.category ?? 'ElevenLabs')})).filter((voice) => voice.id && voice.id.length < 256) : [];
+  return result;
+}
+
+async function updateVoice(request) {
+  const body = await readRequestBody(request, 2048);
+  let payload; try { payload = JSON.parse(body.toString('utf8')); } catch { throw new HttpError(400, 'Invalid voice update payload.'); }
+  const provider = payload?.provider === 'gemini' || payload?.provider === 'elevenlabs' ? payload.provider : null;
+  const voiceId = typeof payload?.voiceId === 'string' ? payload.voiceId.trim() : '';
+  if (!provider || !voiceId || voiceId.length > 255 || /[\r\n\0]/.test(voiceId)) throw new HttpError(400, 'Invalid voice selection.');
+  if (provider === 'gemini' && !geminiVoices.some((voice) => voice.id === voiceId)) throw new HttpError(400, 'Unknown Gemini voice.');
+  const current = await readFile(envPath, 'utf8').catch(() => '');
+  await writeEnvironment(replaceEnvironmentValue(current, provider === 'gemini' ? 'GEMINI_TTS_VOICE' : 'ELEVENLABS_VOICE_ID', voiceId));
+  return voices();
+}
+
+async function previewVoice(request) {
+  const body = await readRequestBody(request, 2048);
+  let payload; try { payload = JSON.parse(body.toString('utf8')); } catch { throw new HttpError(400, 'Invalid voice preview payload.'); }
+  const provider = payload?.provider === 'gemini' || payload?.provider === 'elevenlabs' ? payload.provider : null;
+  const voiceId = typeof payload?.voiceId === 'string' ? payload.voiceId.trim() : '';
+  if (!provider || !voiceId) throw new HttpError(400, 'Voice selection is required.');
+  const environment = readEnvironment(await readFile(envPath, 'utf8').catch(() => ''));
+  if (provider === 'elevenlabs') {
+    if (!environment.ELEVENLABS_API_KEY) throw new HttpError(409, 'ElevenLabs API key chưa được kết nối.');
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`, {method: 'POST', headers: {'xi-api-key': environment.ELEVENLABS_API_KEY, 'Content-Type': 'application/json'}, body: JSON.stringify({text: 'Xin chào', model_id: 'eleven_v3', output_format: 'mp3_44100_128'})});
+    if (!response.ok) throw new HttpError(502, 'Không thể tạo audio preview ElevenLabs.');
+    return {contentType: 'audio/mpeg', body: Buffer.from(await response.arrayBuffer())};
+  }
+  if (!environment.GEMINI_API_KEY) throw new HttpError(409, 'Gemini API key chưa được kết nối.');
+  if (!geminiVoices.some((voice) => voice.id === voiceId)) throw new HttpError(400, 'Unknown Gemini voice.');
+  const {GoogleGenAI} = await import('@google/genai');
+  const ai = new GoogleGenAI({apiKey: environment.GEMINI_API_KEY});
+  const result = await ai.models.generateContent({model: 'gemini-2.5-flash-preview-tts', contents: [{parts: [{text: 'Xin chào'}]}], config: {responseModalities: ['AUDIO'], speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: voiceId}}}}});
+  const pcm = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!pcm) throw new HttpError(502, 'Gemini did not return preview audio.');
+  const raw = Buffer.from(pcm, 'base64'); const header = Buffer.alloc(44); header.write('RIFF', 0); header.writeUInt32LE(36 + raw.length, 4); header.write('WAVE', 8); header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(24000, 24); header.writeUInt32LE(48000, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(raw.length, 40);
+  return {contentType: 'audio/wav', body: Buffer.concat([header, raw])};
 }
 
 async function clearApiKey(providerId) {
@@ -372,6 +425,13 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'POST' && url.pathname === '/api/api-keys') {
       return sendJson(response, 200, await updateApiKey(request));
+    }
+    if (request.method === 'GET' && url.pathname === '/api/voices') return sendJson(response, 200, await voices());
+    if (request.method === 'PATCH' && url.pathname === '/api/voices') return sendJson(response, 200, await updateVoice(request));
+    if (request.method === 'POST' && url.pathname === '/api/voices/preview') {
+      const preview = await previewVoice(request);
+      response.writeHead(200, {'Content-Type': preview.contentType, 'Cache-Control': 'no-store'});
+      return response.end(preview.body);
     }
     const apiKeyMatch = /^\/api\/api-keys\/([a-z0-9.-]+)$/.exec(url.pathname);
     if (apiKeyMatch && request.method === 'GET') return sendJson(response, 200, await apiKeyConnection(apiKeyMatch[1]));

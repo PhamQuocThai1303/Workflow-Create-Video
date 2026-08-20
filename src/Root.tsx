@@ -3,8 +3,8 @@ import {Composition, registerRoot} from 'remotion';
 import {Video, type VideoProps} from './Video';
 
 // These values are updated by the coder agent after each video generation.
-const defaultSlug = '2026-08-19-soft-delete-vs-hard-delete-what-is-the';
-const defaultDuration = 2584;
+const defaultSlug = '2026-08-20-what-are-the-http-status-code-classes-and';
+const defaultDuration = 2674;
 const defaultWidth = 1080;
 const defaultHeight = 1920;
 

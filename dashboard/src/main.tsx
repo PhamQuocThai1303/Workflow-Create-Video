@@ -33,7 +33,7 @@ import {
   X,
   Trash2,
 } from './icons';
-import type {ApiUsage, Overview, TemplateEntry, VideoArtifact, Watermark} from './types';
+import type {ApiUsage, Overview, TemplateEntry, VideoArtifact, VoiceSettings, Watermark} from './types';
 import './dashboard.css';
 
 type Screen = 'overview' | 'videos' | 'templates' | 'api-usage' | 'settings';
@@ -383,6 +383,7 @@ function App() {
                 <OverviewScreen
                   overview={data.overview}
                   templates={data.templates}
+                  apiUsage={data.apiUsage}
                   onVideo={openVideo}
                   onNavigate={navigate}
                   onRefresh={() => void refresh()}
@@ -550,17 +551,20 @@ function App() {
 function OverviewScreen({
   overview,
   templates,
+  apiUsage,
   onVideo,
   onNavigate,
   onRefresh,
 }: {
   overview: Overview;
   templates: TemplateEntry[];
+  apiUsage: ApiUsage;
   onVideo: (video: VideoArtifact) => void;
   onNavigate: (screen: Screen) => void;
   onRefresh: () => void;
 }) {
   const categories = new Set(templates.map((template) => template.category));
+  const attentionVideos = overview.recentVideos.filter((video) => video.status !== 'ready');
   return (
     <>
       <section className="page-heading page-heading--overview">
@@ -591,6 +595,32 @@ function OverviewScreen({
         </div>
       </section>
 
+      <section className="overview-activity workbench-section" aria-label="Hoạt động vận hành">
+        <div className="overview-activity__chart">
+          <div className="section-heading">
+            <div>
+              <h2>Nhịp hoạt động</h2>
+              <p>Request API được dashboard ghi nhận trong {apiUsage.periodDays} ngày gần đây.</p>
+            </div>
+            <button className="text-action" type="button" onClick={() => onNavigate('api-usage')}>
+              API usage <ChevronRight aria-hidden="true" size={16} />
+            </button>
+          </div>
+          <ApiUsageChart apiUsage={apiUsage} />
+        </div>
+        <aside className="attention-block" aria-labelledby="attention-heading">
+          <div>
+            <span className="attention-block__eyebrow">Cần chú ý</span>
+            <h2 id="attention-heading">{attentionVideos.length ? `${attentionVideos.length} job chưa hoàn tất` : 'Không có job lỗi gần đây'}</h2>
+          </div>
+          {attentionVideos.length ? (
+            <div className="attention-block__list">
+              {attentionVideos.slice(0, 3).map((video) => <button type="button" key={video.slug} onClick={() => onVideo(video)}><span>{video.title}</span><CircleAlert aria-hidden="true" size={16} /></button>)}
+            </div>
+          ) : <p>Video render gần đây đều đã có output để mở.</p>}
+        </aside>
+      </section>
+
       <section className="workbench-section">
         <div className="section-heading">
           <div>
@@ -602,7 +632,7 @@ function OverviewScreen({
           </button>
         </div>
         {overview.recentVideos.length ? (
-          <div className="recent-grid">
+          <div className="recent-jobs">
             {overview.recentVideos.map((video) => (
               <article className="recent-video" key={video.slug}>
                 <MediaPreview video={video} compact />
@@ -610,6 +640,7 @@ function OverviewScreen({
                   <VideoStatus status={video.status} />
                   <h3>{video.title}</h3>
                   <p>{video.templateId ?? 'Template chưa được ghi vào artifact'}</p>
+                  <time dateTime={video.updatedAt}>{formatDate(video.updatedAt)}</time>
                   <button className="text-action" type="button" onClick={() => onVideo(video)} disabled={!video.outputAvailable}>
                     <Play aria-hidden="true" size={15} />
                     {video.outputAvailable ? 'Mở video' : 'Chưa có video'}
@@ -1009,6 +1040,32 @@ function ApiUsageChart({apiUsage}: {apiUsage: ApiUsage}) {
   );
 }
 
+function VoiceSettingsPanel() {
+  const [settings, setSettings] = useState<VoiceSettings | null>(null);
+  const [provider, setProvider] = useState<'gemini' | 'elevenlabs'>('gemini');
+  const [query, setQuery] = useState('');
+  const [workingId, setWorkingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => { void dashboardApi.voices().then(setSettings).catch((error: Error) => setMessage(error.message)); }, []);
+  useEffect(() => () => { audioRef.current?.pause(); }, []);
+  const voiceProvider = settings?.[provider];
+  const items = (voiceProvider?.voices ?? []).filter((voice) => `${voice.name} ${voice.description}`.toLocaleLowerCase('vi-VN').includes(query.toLocaleLowerCase('vi-VN')));
+  const choose = async (id: string) => { setWorkingId(id); setMessage(null); try { setSettings(await dashboardApi.updateVoice(provider, id)); } catch (error) { setMessage(error instanceof Error ? error.message : 'Không thể đổi giọng.'); } finally { setWorkingId(null); } };
+  const preview = async (id: string) => { setWorkingId(`preview-${id}`); setMessage(null); try { const blob = await dashboardApi.previewVoice(provider, id); audioRef.current?.pause(); const url = URL.createObjectURL(blob); const audio = new Audio(url); audioRef.current = audio; audio.onended = () => URL.revokeObjectURL(url); await audio.play(); } catch (error) { setMessage(error instanceof Error ? error.message : 'Không thể phát audio preview.'); } finally { setWorkingId(null); } };
+  return <section className="voice-settings" aria-labelledby="voice-settings-heading">
+    <div className="voice-settings__heading"><div><p className="voice-settings__eyebrow">TTS defaults</p><h2 id="voice-settings-heading">Chọn giọng đọc</h2><p>Thiết lập mặc định trong <code>.env</code>; template có voice riêng vẫn được ưu tiên khi render.</p></div><Volume2 aria-hidden="true" size={20} /></div>
+    <div className="voice-settings__tabs" role="tablist" aria-label="Nhà cung cấp giọng đọc">
+      {(['gemini', 'elevenlabs'] as const).map((item) => <button className={provider === item ? 'is-active' : ''} type="button" role="tab" aria-selected={provider === item} onClick={() => { setProvider(item); setQuery(''); setMessage(null); }}>{item === 'gemini' ? 'Gemini · 30 voices' : 'ElevenLabs'}</button>)}
+    </div>
+    {!settings ? <p className="voice-settings__empty">Đang đọc cấu hình giọng…</p> : !voiceProvider?.configured ? <p className="voice-settings__empty">Kết nối {provider === 'gemini' ? 'Gemini' : 'ElevenLabs'} trước để chọn và nghe thử giọng.</p> : <>
+      <label className="voice-settings__search"><Search aria-hidden="true" size={15} /><span className="sr-only">Tìm giọng</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm theo tên hoặc chất giọng" /></label>
+      <div className="voice-list">{items.map((voice) => <article className={`voice-option ${voiceProvider.selectedId === voice.id ? 'voice-option--selected' : ''}`} key={voice.id}><button className="voice-option__choice" type="button" onClick={() => void choose(voice.id)} disabled={workingId === voice.id}><span><strong>{voice.name}</strong><small>{voice.description}</small></span>{voiceProvider.selectedId === voice.id && <Check aria-label="Đang dùng" size={16} />}</button><button className="icon-button voice-option__preview" type="button" onClick={() => void preview(voice.id)} disabled={workingId === `preview-${voice.id}`} title={`Nghe thử ${voice.name}`} aria-label={`Nghe thử giọng ${voice.name}`}>{workingId === `preview-${voice.id}` ? <LoaderCircle className="is-spinning" size={16} /> : <Play size={16} />}</button></article>)}</div>
+    </>}
+    {message && <p className="voice-settings__message" role="alert">{message}</p>}
+  </section>;
+}
+
 function ApiUsageScreen({apiUsage, onSaved}: {apiUsage: ApiUsage; onSaved: (apiUsage: ApiUsage) => void}) {
   const totalRequests = apiUsage.providers.reduce((total, provider) => total + provider.requests, 0);
   const totalSucceeded = apiUsage.providers.reduce((total, provider) => total + provider.succeeded, 0);
@@ -1026,8 +1083,8 @@ function ApiUsageScreen({apiUsage, onSaved}: {apiUsage: ApiUsage; onSaved: (apiU
     setKeyMessage(null);
     setSavingProvider(providerId);
     try {
-      const connection = await dashboardApi.apiKeyConnection(providerId);
-      setKeyValue(connection.value);
+      await dashboardApi.apiKeyConnection(providerId);
+      setKeyValue('');
       keyDialog.current?.showModal();
     } catch (error) {
       setKeyMessage(error instanceof Error ? error.message : 'Không thể đọc API key.');
@@ -1106,6 +1163,7 @@ function ApiUsageScreen({apiUsage, onSaved}: {apiUsage: ApiUsage; onSaved: (apiU
           </article>
         ))}
       </section>
+      <VoiceSettingsPanel />
       <dialog className="api-key-dialog" ref={keyDialog} onClose={closeEditor} onClick={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
         {editingProvider && <form className="api-key-dialog__body" onSubmit={(event) => { event.preventDefault(); void saveKey(); }}>
           <div className="dialog-heading"><div><p>{editingProvider.keyName}</p><h2>Edit connection</h2></div><button className="icon-button" type="button" onClick={closeEditor} aria-label="Đóng cửa sổ chỉnh key"><X aria-hidden="true" size={19} /></button></div>
