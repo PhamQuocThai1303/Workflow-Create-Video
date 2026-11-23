@@ -42,5 +42,7 @@ load-templates/*
 .remotion/
 dist/
 
+.env
+
 # Local dashboard usage history (contains operational metadata only)
 
